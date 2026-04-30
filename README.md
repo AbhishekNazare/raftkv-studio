@@ -71,6 +71,35 @@ This repository should be built like a serious software engineering project:
 - Docs updated when concepts become real.
 - Demo scripts that explain what they prove.
 
+## Current Commands
+
+Run backend tests locally:
+
+```bash
+./scripts/test_backend.sh
+```
+
+Run current demo checks:
+
+```bash
+./scripts/demo_all.sh
+```
+
+Build and test inside Docker:
+
+```bash
+./scripts/docker_test_backend.sh
+```
+
+Start the current 3-node Docker shell:
+
+```bash
+./scripts/run_cluster.sh
+```
+
+The Docker nodes currently run in standalone mode. Live cross-container Raft
+traffic will be wired after the gRPC node server is implemented.
+
 ## First Branches
 
 ```text
@@ -90,4 +119,3 @@ feat/fault-injection-demos
 feat/snapshots-log-compaction
 chore/portfolio-polish
 ```
-

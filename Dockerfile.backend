@@ -1,0 +1,26 @@
+FROM ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends \
+    build-essential \
+    ca-certificates \
+    cmake \
+    libgrpc++-dev \
+    libprotobuf-dev \
+    ninja-build \
+    pkg-config \
+    protobuf-compiler \
+    protobuf-compiler-grpc \
+  && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /workspace
+
+COPY . .
+
+RUN cmake -S backend -B build/backend -DRAFTKV_BUILD_TESTS=ON \
+  && cmake --build build/backend
+
+ENTRYPOINT ["/workspace/build/backend/raftkv-node"]
+
