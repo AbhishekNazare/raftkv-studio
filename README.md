@@ -85,6 +85,18 @@ Run current demo checks:
 ./scripts/demo_all.sh
 ```
 
+Run control-plane tests:
+
+```bash
+./scripts/test_control_plane.sh
+```
+
+Run the control-plane API:
+
+```bash
+./scripts/run_control_plane.sh
+```
+
 Build and test inside Docker:
 
 ```bash
