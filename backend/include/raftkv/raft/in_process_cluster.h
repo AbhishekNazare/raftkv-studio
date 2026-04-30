@@ -19,6 +19,14 @@ struct ReplicationResult {
   bool committed;
 };
 
+struct CatchUpResult {
+  NodeId follower_id;
+  LogIndex from_index;
+  LogIndex to_index;
+  std::size_t entries_sent;
+  bool caught_up;
+};
+
 class InProcessCluster {
  public:
   explicit InProcessCluster(std::vector<NodeId> node_ids);
@@ -33,9 +41,12 @@ class InProcessCluster {
   Status set_available(const NodeId& id, bool available);
   Status elect_leader(const NodeId& candidate_id);
   Result<ReplicationResult> replicate_command(std::string encoded_command);
+  Result<CatchUpResult> sync_follower(const NodeId& follower_id);
 
  private:
   [[nodiscard]] bool is_available(const NodeId& id) const;
+  Result<RaftNode*> current_leader();
+  Result<const RaftNode*> current_leader() const;
   void broadcast_commit(LogIndex commit_index);
 
   std::vector<NodeId> node_order_;

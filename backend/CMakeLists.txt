@@ -96,4 +96,15 @@ if(RAFTKV_BUILD_TESTS)
   )
 
   add_test(NAME raftkv_replication_test COMMAND raftkv_replication_test)
+
+  add_executable(raftkv_failover_test
+    tests/unit/failover_test.cpp
+  )
+
+  target_link_libraries(raftkv_failover_test
+    PRIVATE
+      raftkv_core
+  )
+
+  add_test(NAME raftkv_failover_test COMMAND raftkv_failover_test)
 endif()
