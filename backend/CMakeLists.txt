@@ -15,6 +15,9 @@ option(RAFTKV_BUILD_TESTS "Build backend tests" ON)
 
 add_library(raftkv_core
   src/common/version.cpp
+  src/kv/command.cpp
+  src/kv/command_codec.cpp
+  src/kv/state_machine.cpp
 )
 
 target_include_directories(raftkv_core
@@ -46,5 +49,15 @@ if(RAFTKV_BUILD_TESTS)
   )
 
   add_test(NAME raftkv_smoke_test COMMAND raftkv_smoke_test)
-endif()
 
+  add_executable(raftkv_state_machine_test
+    tests/unit/state_machine_test.cpp
+  )
+
+  target_link_libraries(raftkv_state_machine_test
+    PRIVATE
+      raftkv_core
+  )
+
+  add_test(NAME raftkv_state_machine_test COMMAND raftkv_state_machine_test)
+endif()
