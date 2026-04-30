@@ -4,6 +4,7 @@ import {
   getCluster,
   getEvents,
   resetDemo,
+  runDemoScenario,
   sendCommand,
   setNodeAvailability
 } from "./api";
@@ -26,6 +27,7 @@ function App() {
   const [key, setKey] = useState("user:1");
   const [value, setValue] = useState("Abhishek");
   const [lastResult, setLastResult] = useState<CommandResult | null>(null);
+  const [lastDemo, setLastDemo] = useState<string>("No demo has run yet.");
 
   async function refresh() {
     try {
@@ -66,6 +68,13 @@ function App() {
   async function reset() {
     await resetDemo();
     setLastResult(null);
+    setLastDemo("Demo state reset.");
+    await refresh();
+  }
+
+  async function runScenario(scenario: string) {
+    const result = (await runDemoScenario(scenario)) as { passed?: boolean; scenario?: string };
+    setLastDemo(`${result.scenario ?? scenario}: ${result.passed ? "passed" : "check result"}`);
     await refresh();
   }
 
@@ -191,6 +200,19 @@ function App() {
             </div>
           </div>
 
+          <div className="panel demo-panel">
+            <div className="panel-header">
+              <h3>Guided Demos</h3>
+              <span>scripted scenarios</span>
+            </div>
+            <div className="demo-list">
+              <button onClick={() => runScenario("no-quorum")} disabled={!apiOnline}>No Quorum</button>
+              <button onClick={() => runScenario("leader-failover")} disabled={!apiOnline}>Leader Failover</button>
+              <button onClick={() => runScenario("network-partition")} disabled={!apiOnline}>Network Partition</button>
+            </div>
+            <p className="demo-result">{lastDemo}</p>
+          </div>
+
           <div className="panel event-panel">
             <div className="panel-header">
               <h3>Event Timeline</h3>
@@ -242,4 +264,3 @@ createRoot(document.getElementById("root")!).render(
     <App />
   </React.StrictMode>
 );
-

@@ -280,6 +280,18 @@ button:disabled {
   gap: 0.6rem;
 }
 
+.demo-list {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.6rem;
+}
+
+.demo-result {
+  margin: 0.75rem 0 0;
+  color: #31413d;
+  font-weight: 700;
+}
+
 .event-list,
 .kv-list {
   display: grid;
@@ -328,7 +340,8 @@ button:disabled {
   .dashboard-grid,
   .topology,
   .terminal-row,
-  .fault-list {
+  .fault-list,
+  .demo-list {
     grid-template-columns: 1fr;
   }
 }

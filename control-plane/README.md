@@ -34,11 +34,13 @@ GET  /api/v1/cluster
 GET  /api/v1/events
 POST /api/v1/commands
 POST /api/v1/faults/node
+POST /api/v1/faults/partition
+POST /api/v1/faults/heal
 POST /api/v1/demos/reset
+POST /api/v1/demos/run
 ```
 
 ## Current Limits
 
 The API is real HTTP, but its cluster data is simulated. Once the backend node
 server exists, the service layer can replace the simulation with gRPC clients.
-

@@ -51,3 +51,10 @@ export async function resetDemo(): Promise<ClusterSnapshot> {
   });
 }
 
+export async function runDemoScenario(scenario: string): Promise<unknown> {
+  return request<unknown>("/api/v1/demos/run", {
+    method: "POST",
+    headers: jsonHeaders,
+    body: JSON.stringify({ scenario })
+  });
+}
