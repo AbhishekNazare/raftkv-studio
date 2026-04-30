@@ -21,6 +21,9 @@ add_library(raftkv_core
   src/raft/in_process_cluster.cpp
   src/raft/raft_node.cpp
   src/raft/raft_log.cpp
+  src/storage/file_kv_store.cpp
+  src/storage/file_log_store.cpp
+  src/storage/file_metadata_store.cpp
 )
 
 target_include_directories(raftkv_core
@@ -107,4 +110,15 @@ if(RAFTKV_BUILD_TESTS)
   )
 
   add_test(NAME raftkv_failover_test COMMAND raftkv_failover_test)
+
+  add_executable(raftkv_storage_test
+    tests/unit/storage_test.cpp
+  )
+
+  target_link_libraries(raftkv_storage_test
+    PRIVATE
+      raftkv_core
+  )
+
+  add_test(NAME raftkv_storage_test COMMAND raftkv_storage_test)
 endif()
