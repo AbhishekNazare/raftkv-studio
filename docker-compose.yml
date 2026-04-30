@@ -1,0 +1,58 @@
+services:
+  node1:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    image: raftkv-studio-backend:latest
+    container_name: raftkv-node1
+    command:
+      - --node-id
+      - node1
+      - --data-dir
+      - /data/node1
+      - --standalone
+    volumes:
+      - node1-data:/data/node1
+
+  node2:
+    image: raftkv-studio-backend:latest
+    container_name: raftkv-node2
+    command:
+      - --node-id
+      - node2
+      - --data-dir
+      - /data/node2
+      - --standalone
+    depends_on:
+      - node1
+    volumes:
+      - node2-data:/data/node2
+
+  node3:
+    image: raftkv-studio-backend:latest
+    container_name: raftkv-node3
+    command:
+      - --node-id
+      - node3
+      - --data-dir
+      - /data/node3
+      - --standalone
+    depends_on:
+      - node1
+    volumes:
+      - node3-data:/data/node3
+
+  backend-tests:
+    image: raftkv-studio-backend:latest
+    profiles:
+      - test
+    entrypoint:
+      - /workspace/scripts/test_backend.sh
+    depends_on:
+      - node1
+
+volumes:
+  node1-data:
+  node2-data:
+  node3-data:
+

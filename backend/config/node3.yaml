@@ -1,0 +1,6 @@
+node_id: node3
+data_dir: /data/node3
+peers:
+  - node1
+  - node2
+
