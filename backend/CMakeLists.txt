@@ -13,6 +13,53 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(RAFTKV_BUILD_TESTS "Build backend tests" ON)
 
+find_package(Protobuf CONFIG REQUIRED)
+find_package(gRPC CONFIG REQUIRED)
+
+set(RAFTKV_PROTO_DIR ${CMAKE_CURRENT_SOURCE_DIR}/proto)
+set(RAFTKV_GENERATED_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated)
+file(MAKE_DIRECTORY ${RAFTKV_GENERATED_DIR})
+
+set(RAFTKV_RAFT_PROTO ${RAFTKV_PROTO_DIR}/raft.proto)
+set(RAFTKV_RAFT_PROTO_SRCS
+  ${RAFTKV_GENERATED_DIR}/raft.pb.cc
+  ${RAFTKV_GENERATED_DIR}/raft.grpc.pb.cc
+)
+set(RAFTKV_RAFT_PROTO_HDRS
+  ${RAFTKV_GENERATED_DIR}/raft.pb.h
+  ${RAFTKV_GENERATED_DIR}/raft.grpc.pb.h
+)
+
+add_custom_command(
+  OUTPUT
+    ${RAFTKV_RAFT_PROTO_SRCS}
+    ${RAFTKV_RAFT_PROTO_HDRS}
+  COMMAND $<TARGET_FILE:protobuf::protoc>
+  ARGS
+    --proto_path=${RAFTKV_PROTO_DIR}
+    --cpp_out=${RAFTKV_GENERATED_DIR}
+    --grpc_out=${RAFTKV_GENERATED_DIR}
+    --plugin=protoc-gen-grpc=$<TARGET_FILE:gRPC::grpc_cpp_plugin>
+    ${RAFTKV_RAFT_PROTO}
+  DEPENDS ${RAFTKV_RAFT_PROTO}
+  COMMENT "Generating Raft protobuf and gRPC sources"
+)
+
+add_library(raftkv_proto
+  ${RAFTKV_RAFT_PROTO_SRCS}
+)
+
+target_include_directories(raftkv_proto
+  PUBLIC
+    ${RAFTKV_GENERATED_DIR}
+)
+
+target_link_libraries(raftkv_proto
+  PUBLIC
+    protobuf::libprotobuf
+    gRPC::grpc++
+)
+
 add_library(raftkv_core
   src/common/version.cpp
   src/kv/command.cpp
@@ -24,6 +71,7 @@ add_library(raftkv_core
   src/storage/file_kv_store.cpp
   src/storage/file_log_store.cpp
   src/storage/file_metadata_store.cpp
+  src/net/raft_rpc_mapper.cpp
 )
 
 target_include_directories(raftkv_core
@@ -32,6 +80,11 @@ target_include_directories(raftkv_core
 )
 
 target_compile_features(raftkv_core PUBLIC cxx_std_20)
+
+target_link_libraries(raftkv_core
+  PUBLIC
+    raftkv_proto
+)
 
 add_executable(raftkv-node
   src/main.cpp
@@ -121,4 +174,15 @@ if(RAFTKV_BUILD_TESTS)
   )
 
   add_test(NAME raftkv_storage_test COMMAND raftkv_storage_test)
+
+  add_executable(raftkv_rpc_mapper_test
+    tests/unit/rpc_mapper_test.cpp
+  )
+
+  target_link_libraries(raftkv_rpc_mapper_test
+    PRIVATE
+      raftkv_core
+  )
+
+  add_test(NAME raftkv_rpc_mapper_test COMMAND raftkv_rpc_mapper_test)
 endif()

@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package raftkv.rpc.v1;
+
+message NodeStatusRequest {}
+
+message NodeStatusResponse {
+  string node_id = 1;
+  string role = 2;
+  uint64 current_term = 3;
+  string leader_id = 4;
+  uint64 commit_index = 5;
+  uint64 last_applied = 6;
+  uint64 last_log_index = 7;
+}
+
+service DebugService {
+  rpc NodeStatus(NodeStatusRequest) returns (NodeStatusResponse);
+}
+
