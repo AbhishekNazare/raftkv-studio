@@ -106,6 +106,29 @@ class ControlPlaneHTTPTest(unittest.TestCase):
         self.assertIn("ENTRY_COMMITTED", event_types)
         self.assertIn("ENTRY_APPLIED", event_types)
 
+    def test_network_partition_demo(self):
+        status, result = self.request(
+            "POST", "/api/v1/demos/run", {"scenario": "network-partition"}
+        )
+
+        self.assertEqual(status, 200)
+        self.assertTrue(result["passed"])
+        self.assertEqual(result["cluster"]["kv"]["split:test"], "new-leader-write")
+        event_types = [event["type"] for event in result["events"]]
+        self.assertIn("NETWORK_PARTITIONED", event_types)
+        self.assertIn("STALE_TERM_REJECTED", event_types)
+
+    def test_leader_failover_demo(self):
+        status, result = self.request(
+            "POST", "/api/v1/demos/run", {"scenario": "leader-failover"}
+        )
+
+        self.assertEqual(status, 200)
+        self.assertTrue(result["passed"])
+        self.assertNotEqual(result["oldLeader"], result["newLeader"])
+        self.assertEqual(result["cluster"]["kv"]["session:1"], "active")
+        self.assertEqual(result["cluster"]["kv"]["session:2"], "active")
+
 
 if __name__ == "__main__":
     unittest.main()

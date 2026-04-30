@@ -50,8 +50,23 @@ class ControlPlaneApp:
                         self._write_json(200, snapshot.to_dict())
                         return
 
+                    if path == "/api/v1/faults/partition":
+                        snapshot = service.partition_node(str(body.get("nodeId", "")))
+                        self._write_json(200, snapshot.to_dict())
+                        return
+
+                    if path == "/api/v1/faults/heal":
+                        snapshot = service.heal_node(str(body.get("nodeId", "")))
+                        self._write_json(200, snapshot.to_dict())
+                        return
+
                     if path == "/api/v1/demos/reset":
                         self._write_json(200, service.reset().to_dict())
+                        return
+
+                    if path == "/api/v1/demos/run":
+                        result = service.run_demo(str(body.get("scenario", "")))
+                        self._write_json(200, result)
                         return
 
                     self._write_json(404, {"error": "not found"})
@@ -86,4 +101,3 @@ def create_server(host: str, port: int) -> Tuple[ThreadingHTTPServer, ClusterSer
     service = ClusterService()
     app = ControlPlaneApp(service)
     return ThreadingHTTPServer((host, port), app.make_handler()), service
-

@@ -55,6 +55,46 @@ class ClusterService:
 
         return self.snapshot()
 
+    def partition_node(self, node_id: str) -> ClusterSnapshot:
+        node = self._require_node(node_id)
+        node.available = False
+        self._emit("NETWORK_PARTITIONED", node_id, f"{node_id} isolated from majority", node.term)
+
+        if self._leader_id == node_id:
+            self._leader_id = None
+            self._emit("QUORUM_LOST", node_id, "old leader isolated without quorum", node.term)
+            self._elect_available_leader()
+
+        return self.snapshot()
+
+    def heal_node(self, node_id: str) -> ClusterSnapshot:
+        node = self._require_node(node_id)
+        node.available = True
+        self._emit("NODE_STARTED", node_id, f"{node_id} rejoined cluster", node.term)
+
+        if self._leader_id is not None and node.role == "LEADER" and node.node_id != self._leader_id:
+            active_leader = self._nodes[self._leader_id]
+            node.role = "FOLLOWER"
+            node.term = max(node.term, active_leader.term)
+            self._emit(
+                "STALE_TERM_REJECTED",
+                node_id,
+                f"{node_id} stepped down after seeing active leader {active_leader.node_id}",
+                node.term,
+            )
+
+        return self.snapshot()
+
+    def run_demo(self, scenario: str) -> dict:
+        normalized = scenario.lower().replace("_", "-")
+        if normalized == "no-quorum":
+            return self._demo_no_quorum()
+        if normalized == "leader-failover":
+            return self._demo_leader_failover()
+        if normalized == "network-partition":
+            return self._demo_network_partition()
+        raise ValueError(f"unsupported demo scenario: {scenario}")
+
     def run_command(self, command: str, key: str, value: Optional[str] = None) -> CommandResult:
         normalized = command.upper()
         if normalized == "GET":
@@ -150,13 +190,65 @@ class ClusterService:
             return self._current_leader()
         return leader
 
+    def _demo_no_quorum(self) -> dict:
+        self.reset()
+        self.set_node_available("node2", False)
+        self.set_node_available("node3", False)
+        result = self.run_command("PUT", "payment:55", "success")
+        return {
+            "scenario": "no-quorum",
+            "passed": not result.committed,
+            "result": result.to_dict(),
+            "cluster": self.snapshot().to_dict(),
+            "events": [event.to_dict() for event in self.events()],
+        }
+
+    def _demo_leader_failover(self) -> dict:
+        self.reset()
+        first = self.run_command("PUT", "session:1", "active")
+        old_leader = self._leader_id
+        if old_leader is not None:
+            self.set_node_available(old_leader, False)
+        second = self.run_command("PUT", "session:2", "active")
+        passed = first.committed and second.committed and self._kv.get("session:1") == "active"
+        return {
+            "scenario": "leader-failover",
+            "passed": passed,
+            "oldLeader": old_leader,
+            "newLeader": self._leader_id,
+            "firstWrite": first.to_dict(),
+            "secondWrite": second.to_dict(),
+            "cluster": self.snapshot().to_dict(),
+            "events": [event.to_dict() for event in self.events()],
+        }
+
+    def _demo_network_partition(self) -> dict:
+        self.reset()
+        old_leader = self._leader_id
+        if old_leader is None:
+            raise RuntimeError("no leader available")
+
+        self.partition_node(old_leader)
+        write = self.run_command("PUT", "split:test", "new-leader-write")
+        self.heal_node(old_leader)
+        passed = write.committed and self._kv.get("split:test") == "new-leader-write"
+        return {
+            "scenario": "network-partition",
+            "passed": passed,
+            "oldLeader": old_leader,
+            "newLeader": self._leader_id,
+            "write": write.to_dict(),
+            "cluster": self.snapshot().to_dict(),
+            "events": [event.to_dict() for event in self.events()],
+        }
+
     def _elect_available_leader(self) -> None:
         alive = [node for node in self._nodes.values() if node.available]
         if len(alive) < self.majority():
             return
 
         new_term = max(node.term for node in self._nodes.values()) + 1
-        for node in self._nodes.values():
+        for node in alive:
             node.term = new_term
             node.role = "FOLLOWER"
 
@@ -183,4 +275,3 @@ class ClusterService:
             )
         )
         self._next_event_sequence += 1
-
