@@ -97,6 +97,18 @@ Run the control-plane API:
 ./scripts/run_control_plane.sh
 ```
 
+Run the UI:
+
+```bash
+./scripts/run_ui.sh
+```
+
+Build the UI:
+
+```bash
+./scripts/test_ui.sh
+```
+
 Build and test inside Docker:
 
 ```bash
