@@ -2,6 +2,8 @@
 
 #include <utility>
 
+#include "raftkv/kv/command_codec.h"
+
 namespace raftkv::raft {
 
 std::string role_name(RaftRole role) {
@@ -45,6 +47,14 @@ const RaftLog& RaftNode::log() const {
 
 RaftLog& RaftNode::mutable_log() {
   return log_;
+}
+
+const kv::StateMachine& RaftNode::state_machine() const {
+  return state_machine_;
+}
+
+LogIndex RaftNode::last_applied() const {
+  return last_applied_;
 }
 
 void RaftNode::become_follower(Term term, std::optional<NodeId> leader_id) {
@@ -117,17 +127,36 @@ AppendEntriesResponse RaftNode::handle_append_entries(
     return AppendEntriesResponse{current_term_, false};
   }
 
+  const Status append_status = log_.append_from_leader(
+      request.prev_log_index, request.prev_log_term, request.entries);
+  if (!append_status.ok_status()) {
+    return AppendEntriesResponse{current_term_, false};
+  }
+
   if (request.leader_commit > log_.commit_index()) {
     const LogIndex new_commit_index =
         request.leader_commit < log_.last_index() ? request.leader_commit
                                                   : log_.last_index();
-    const Status status = log_.advance_commit_index(new_commit_index);
+    const Status status = advance_commit_index(new_commit_index);
     if (!status.ok_status()) {
       return AppendEntriesResponse{current_term_, false};
     }
   }
 
   return AppendEntriesResponse{current_term_, true};
+}
+
+LogEntry RaftNode::append_client_command(std::string encoded_command) {
+  return log_.append(current_term_, std::move(encoded_command));
+}
+
+Status RaftNode::advance_commit_index(LogIndex new_commit_index) {
+  const Status status = log_.advance_commit_index(new_commit_index);
+  if (!status.ok_status()) {
+    return status;
+  }
+
+  return apply_committed_entries();
 }
 
 bool RaftNode::candidate_log_is_at_least_as_fresh(
@@ -139,6 +168,30 @@ bool RaftNode::candidate_log_is_at_least_as_fresh(
   return request.last_log_index >= log_.last_index();
 }
 
+Status RaftNode::apply_committed_entries() {
+  while (last_applied_ < log_.commit_index()) {
+    const LogIndex next_index = last_applied_ + 1;
+    Result<LogEntry> entry = log_.entry_at(next_index);
+    if (!entry.ok()) {
+      return entry.status();
+    }
+
+    Result<kv::Command> command = kv::decode_command(entry.value().command);
+    if (!command.ok()) {
+      return command.status();
+    }
+
+    const Status apply_status = state_machine_.apply(command.value());
+    if (!apply_status.ok_status()) {
+      return apply_status;
+    }
+
+    last_applied_ = next_index;
+  }
+
+  return Status::ok();
+}
+
 void RaftNode::step_down_to_term(Term term) {
   current_term_ = term;
   role_ = RaftRole::kFollower;
@@ -147,4 +200,3 @@ void RaftNode::step_down_to_term(Term term) {
 }
 
 }  // namespace raftkv::raft
-

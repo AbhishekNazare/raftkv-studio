@@ -18,6 +18,7 @@ add_library(raftkv_core
   src/kv/command.cpp
   src/kv/command_codec.cpp
   src/kv/state_machine.cpp
+  src/raft/in_process_cluster.cpp
   src/raft/raft_node.cpp
   src/raft/raft_log.cpp
 )
@@ -84,4 +85,15 @@ if(RAFTKV_BUILD_TESTS)
   )
 
   add_test(NAME raftkv_node_test COMMAND raftkv_node_test)
+
+  add_executable(raftkv_replication_test
+    tests/unit/replication_test.cpp
+  )
+
+  target_link_libraries(raftkv_replication_test
+    PRIVATE
+      raftkv_core
+  )
+
+  add_test(NAME raftkv_replication_test COMMAND raftkv_replication_test)
 endif()

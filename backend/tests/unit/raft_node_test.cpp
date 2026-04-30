@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 
+#include "raftkv/kv/command_codec.h"
 #include "raftkv/raft/raft_node.h"
 
 namespace {
@@ -92,7 +93,7 @@ void test_candidate_steps_down_for_newer_append_entries() {
   candidate.start_election();
 
   const raftkv::raft::AppendEntriesResponse response =
-      candidate.handle_append_entries({2, "node2", 0, 0, 0});
+      candidate.handle_append_entries({2, "node2", 0, 0, {}, 0});
 
   expect(response.success, "newer heartbeat with matching log should succeed");
   expect(response.term == 2, "response should include updated term");
@@ -111,7 +112,7 @@ void test_append_entries_rejects_stale_leader() {
   follower.start_election();
 
   const raftkv::raft::AppendEntriesResponse response =
-      follower.handle_append_entries({1, "node2", 0, 0, 0});
+      follower.handle_append_entries({1, "node2", 0, 0, {}, 0});
 
   expect(!response.success, "stale leader heartbeat should be rejected");
   expect(response.term == 2, "response should include follower current term");
@@ -124,7 +125,7 @@ void test_append_entries_validates_previous_log_entry() {
   follower.mutable_log().append(1, "PUT a 1");
 
   const raftkv::raft::AppendEntriesResponse response =
-      follower.handle_append_entries({1, "node2", 1, 2, 0});
+      follower.handle_append_entries({1, "node2", 1, 2, {}, 0});
 
   expect(!response.success, "mismatched previous log term should be rejected");
   expect(follower.leader_id().has_value(),
@@ -133,11 +134,13 @@ void test_append_entries_validates_previous_log_entry() {
 
 void test_append_entries_advances_commit_to_minimum_known_index() {
   raftkv::raft::RaftNode follower("node1");
-  follower.mutable_log().append(1, "PUT a 1");
-  follower.mutable_log().append(1, "PUT b 2");
+  follower.mutable_log().append(
+      1, raftkv::kv::encode_command(raftkv::kv::Command::put("a", "1")));
+  follower.mutable_log().append(
+      1, raftkv::kv::encode_command(raftkv::kv::Command::put("b", "2")));
 
   const raftkv::raft::AppendEntriesResponse response =
-      follower.handle_append_entries({1, "node2", 2, 1, 99});
+      follower.handle_append_entries({1, "node2", 2, 1, {}, 99});
 
   expect(response.success, "heartbeat should succeed with matching previous log");
   expect(follower.log().commit_index() == 2,
@@ -199,4 +202,3 @@ int main() {
   std::cout << "PASS: raft node tests\n";
   return 0;
 }
-
