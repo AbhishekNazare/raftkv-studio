@@ -18,6 +18,7 @@ add_library(raftkv_core
   src/kv/command.cpp
   src/kv/command_codec.cpp
   src/kv/state_machine.cpp
+  src/raft/raft_log.cpp
 )
 
 target_include_directories(raftkv_core
@@ -60,4 +61,15 @@ if(RAFTKV_BUILD_TESTS)
   )
 
   add_test(NAME raftkv_state_machine_test COMMAND raftkv_state_machine_test)
+
+  add_executable(raftkv_log_test
+    tests/unit/raft_log_test.cpp
+  )
+
+  target_link_libraries(raftkv_log_test
+    PRIVATE
+      raftkv_core
+  )
+
+  add_test(NAME raftkv_log_test COMMAND raftkv_log_test)
 endif()
