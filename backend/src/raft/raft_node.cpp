@@ -1,0 +1,150 @@
+#include "raftkv/raft/raft_node.h"
+
+#include <utility>
+
+namespace raftkv::raft {
+
+std::string role_name(RaftRole role) {
+  switch (role) {
+    case RaftRole::kFollower:
+      return "FOLLOWER";
+    case RaftRole::kCandidate:
+      return "CANDIDATE";
+    case RaftRole::kLeader:
+      return "LEADER";
+  }
+
+  return "UNKNOWN";
+}
+
+RaftNode::RaftNode(NodeId id) : id_(std::move(id)) {}
+
+const NodeId& RaftNode::id() const {
+  return id_;
+}
+
+RaftRole RaftNode::role() const {
+  return role_;
+}
+
+Term RaftNode::current_term() const {
+  return current_term_;
+}
+
+const std::optional<NodeId>& RaftNode::voted_for() const {
+  return voted_for_;
+}
+
+const std::optional<NodeId>& RaftNode::leader_id() const {
+  return leader_id_;
+}
+
+const RaftLog& RaftNode::log() const {
+  return log_;
+}
+
+RaftLog& RaftNode::mutable_log() {
+  return log_;
+}
+
+void RaftNode::become_follower(Term term, std::optional<NodeId> leader_id) {
+  role_ = RaftRole::kFollower;
+  current_term_ = term;
+  leader_id_ = std::move(leader_id);
+  voted_for_.reset();
+}
+
+void RaftNode::start_election() {
+  role_ = RaftRole::kCandidate;
+  ++current_term_;
+  voted_for_ = id_;
+  leader_id_.reset();
+}
+
+void RaftNode::become_leader() {
+  role_ = RaftRole::kLeader;
+  leader_id_ = id_;
+}
+
+RequestVoteRequest RaftNode::build_request_vote() const {
+  return RequestVoteRequest{
+      current_term_,
+      id_,
+      log_.last_index(),
+      log_.last_term(),
+  };
+}
+
+RequestVoteResponse RaftNode::handle_request_vote(
+    const RequestVoteRequest& request) {
+  if (request.term < current_term_) {
+    return RequestVoteResponse{current_term_, false};
+  }
+
+  if (request.term > current_term_) {
+    step_down_to_term(request.term);
+  }
+
+  const bool already_voted_for_candidate =
+      voted_for_.has_value() && *voted_for_ == request.candidate_id;
+  const bool vote_available =
+      !voted_for_.has_value() || already_voted_for_candidate;
+
+  if (vote_available && candidate_log_is_at_least_as_fresh(request)) {
+    voted_for_ = request.candidate_id;
+    leader_id_.reset();
+    role_ = RaftRole::kFollower;
+    return RequestVoteResponse{current_term_, true};
+  }
+
+  return RequestVoteResponse{current_term_, false};
+}
+
+AppendEntriesResponse RaftNode::handle_append_entries(
+    const AppendEntriesRequest& request) {
+  if (request.term < current_term_) {
+    return AppendEntriesResponse{current_term_, false};
+  }
+
+  if (request.term > current_term_) {
+    step_down_to_term(request.term);
+  }
+
+  role_ = RaftRole::kFollower;
+  leader_id_ = request.leader_id;
+
+  if (!log_.matches_at(request.prev_log_index, request.prev_log_term)) {
+    return AppendEntriesResponse{current_term_, false};
+  }
+
+  if (request.leader_commit > log_.commit_index()) {
+    const LogIndex new_commit_index =
+        request.leader_commit < log_.last_index() ? request.leader_commit
+                                                  : log_.last_index();
+    const Status status = log_.advance_commit_index(new_commit_index);
+    if (!status.ok_status()) {
+      return AppendEntriesResponse{current_term_, false};
+    }
+  }
+
+  return AppendEntriesResponse{current_term_, true};
+}
+
+bool RaftNode::candidate_log_is_at_least_as_fresh(
+    const RequestVoteRequest& request) const {
+  if (request.last_log_term != log_.last_term()) {
+    return request.last_log_term > log_.last_term();
+  }
+
+  return request.last_log_index >= log_.last_index();
+}
+
+void RaftNode::step_down_to_term(Term term) {
+  current_term_ = term;
+  role_ = RaftRole::kFollower;
+  voted_for_.reset();
+  leader_id_.reset();
+}
+
+}  // namespace raftkv::raft
+
