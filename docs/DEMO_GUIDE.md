@@ -18,6 +18,23 @@ Expected result: every command exits successfully.
 
 ## 2. Start The Dashboard
 
+Recommended single-command start:
+
+```bash
+./scripts/run_dev.sh
+```
+
+This clears stale RaftKV dev ports, starts the control plane on `8090`, and
+starts the UI on `5173`.
+
+If you need to stop stale dev servers manually:
+
+```bash
+./scripts/stop_dev.sh
+```
+
+Separate-terminal start:
+
 Terminal 1:
 
 ```bash

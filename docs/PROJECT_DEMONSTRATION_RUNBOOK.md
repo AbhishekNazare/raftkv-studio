@@ -74,6 +74,34 @@ Use this only if Docker is running.
 
 ## 3. Start The Project Locally
 
+Recommended:
+
+```bash
+./scripts/run_dev.sh
+```
+
+Expected:
+
+```text
+Control plane: http://127.0.0.1:8090
+UI: http://127.0.0.1:5173
+```
+
+Open:
+
+```text
+http://127.0.0.1:5173
+```
+
+Use this cleanup command if you previously started several dev servers and Vite
+keeps jumping to `5174`, `5175`, or another port:
+
+```bash
+./scripts/stop_dev.sh
+```
+
+Separate-terminal mode:
+
 Open two terminals.
 
 Terminal 1:
@@ -435,6 +463,18 @@ Run UI:
 ./scripts/run_ui.sh
 ```
 
+Run full dev stack:
+
+```bash
+./scripts/run_dev.sh
+```
+
+Stop local dev stack:
+
+```bash
+./scripts/stop_dev.sh
+```
+
 Run all demos:
 
 ```bash
@@ -484,8 +524,8 @@ Use this order for a clean 10 to 15 minute walkthrough:
 
 1. Show `README.md` and explain the honest current state.
 2. Run `./scripts/test_backend.sh`.
-3. Start `./scripts/run_control_plane.sh`.
-4. Start `./scripts/run_ui.sh`.
+3. Start `./scripts/run_dev.sh`.
+4. Open `http://127.0.0.1:5173`.
 5. Run a normal `PUT`.
 6. Show No Quorum.
 7. Show Leader Failover.

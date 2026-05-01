@@ -64,7 +64,19 @@ Run the main checks:
 ./scripts/demo_all.sh
 ```
 
-Run the dashboard locally:
+Run the full local dev stack:
+
+```bash
+./scripts/run_dev.sh
+```
+
+Stop any stale local dev servers:
+
+```bash
+./scripts/stop_dev.sh
+```
+
+Or run the control plane and UI in separate terminals:
 
 ```bash
 ./scripts/run_control_plane.sh
