@@ -129,6 +129,38 @@ class ControlPlaneHTTPTest(unittest.TestCase):
         self.assertEqual(result["cluster"]["kv"]["session:1"], "active")
         self.assertEqual(result["cluster"]["kv"]["session:2"], "active")
 
+    def test_create_snapshot_compacts_visible_log_range(self):
+        self.request(
+            "POST",
+            "/api/v1/commands",
+            {"command": "PUT", "key": "snapshot:1", "value": "ready"},
+        )
+
+        status, snapshot = self.request("POST", "/api/v1/snapshots/create", {})
+
+        self.assertEqual(status, 200)
+        self.assertEqual(snapshot["snapshotIndex"], 1)
+        self.assertEqual(snapshot["compactedLogStartIndex"], 2)
+
+        status, data = self.request("GET", "/api/v1/events")
+        self.assertEqual(status, 200)
+        event_types = [event["type"] for event in data["events"]]
+        self.assertIn("SNAPSHOT_CREATED", event_types)
+        self.assertIn("LOG_COMPACTED", event_types)
+
+    def test_snapshot_install_demo(self):
+        status, result = self.request(
+            "POST", "/api/v1/demos/run", {"scenario": "snapshot-install"}
+        )
+
+        self.assertEqual(status, 200)
+        self.assertTrue(result["passed"])
+        self.assertEqual(result["snapshotIndex"], 2)
+        self.assertEqual(result["compactedLogStartIndex"], 3)
+        event_types = [event["type"] for event in result["events"]]
+        self.assertIn("SNAPSHOT_CREATED", event_types)
+        self.assertIn("SNAPSHOT_INSTALLED", event_types)
+
 
 if __name__ == "__main__":
     unittest.main()

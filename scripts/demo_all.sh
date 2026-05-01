@@ -7,4 +7,5 @@ set -euo pipefail
 ./scripts/demo_leader_failover.sh
 ./scripts/demo_no_quorum.sh
 ./scripts/demo_network_partition.sh
+./scripts/demo_snapshot_install.sh
 ./scripts/demo_control_plane.sh

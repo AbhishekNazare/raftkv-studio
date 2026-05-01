@@ -43,5 +43,8 @@ std::map<std::string, std::string> StateMachine::snapshot() const {
   return values_;
 }
 
-}  // namespace raftkv::kv
+void StateMachine::replace_all(std::map<std::string, std::string> values) {
+  values_ = std::move(values);
+}
 
+}  // namespace raftkv::kv

@@ -9,7 +9,7 @@ from raftkv_control_plane.cluster_service import ClusterService
 
 service = ClusterService()
 
-for scenario in ["no-quorum", "leader-failover", "network-partition"]:
+for scenario in ["no-quorum", "leader-failover", "network-partition", "snapshot-install"]:
     result = service.run_demo(scenario)
     print(f"{scenario}: {'PASS' if result['passed'] else 'FAIL'}")
     if not result["passed"]:

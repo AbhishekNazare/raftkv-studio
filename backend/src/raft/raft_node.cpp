@@ -57,6 +57,10 @@ LogIndex RaftNode::last_applied() const {
   return last_applied_;
 }
 
+const std::optional<Snapshot>& RaftNode::latest_snapshot() const {
+  return latest_snapshot_;
+}
+
 void RaftNode::become_follower(Term term, std::optional<NodeId> leader_id) {
   role_ = RaftRole::kFollower;
   current_term_ = term;
@@ -157,6 +161,43 @@ Status RaftNode::advance_commit_index(LogIndex new_commit_index) {
   }
 
   return apply_committed_entries();
+}
+
+Result<Snapshot> RaftNode::create_snapshot() {
+  if (log_.commit_index() == 0) {
+    return Status::error(StatusCode::kInvalidArgument,
+                         "cannot snapshot empty committed state");
+  }
+
+  const SnapshotMetadata metadata{
+      log_.commit_index(),
+      log_.term_at(log_.commit_index()),
+  };
+  if (metadata.last_included_term == 0) {
+    return Status::error(StatusCode::kNotFound,
+                         "committed snapshot boundary is missing");
+  }
+
+  Snapshot snapshot{metadata, state_machine_.snapshot()};
+  const Status compact_status = log_.compact_up_to(metadata.last_included_index);
+  if (!compact_status.ok_status()) {
+    return compact_status;
+  }
+
+  latest_snapshot_ = snapshot;
+  return snapshot;
+}
+
+Status RaftNode::install_snapshot(const Snapshot& snapshot) {
+  const Status status = log_.install_snapshot_metadata(snapshot.metadata);
+  if (!status.ok_status()) {
+    return status;
+  }
+
+  state_machine_.replace_all(snapshot.kv_state);
+  last_applied_ = snapshot.metadata.last_included_index;
+  latest_snapshot_ = snapshot;
+  return Status::ok();
 }
 
 bool RaftNode::candidate_log_is_at_least_as_fresh(

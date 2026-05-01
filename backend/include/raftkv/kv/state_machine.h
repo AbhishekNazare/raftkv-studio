@@ -17,10 +17,10 @@ class StateMachine {
   [[nodiscard]] bool contains(const std::string& key) const;
   [[nodiscard]] std::size_t size() const;
   [[nodiscard]] std::map<std::string, std::string> snapshot() const;
+  void replace_all(std::map<std::string, std::string> values);
 
  private:
   std::map<std::string, std::string> values_;
 };
 
 }  // namespace raftkv::kv
-

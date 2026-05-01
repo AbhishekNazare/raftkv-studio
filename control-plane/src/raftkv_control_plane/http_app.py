@@ -60,6 +60,11 @@ class ControlPlaneApp:
                         self._write_json(200, snapshot.to_dict())
                         return
 
+                    if path == "/api/v1/snapshots/create":
+                        snapshot = service.create_snapshot()
+                        self._write_json(200, snapshot.to_dict())
+                        return
+
                     if path == "/api/v1/demos/reset":
                         self._write_json(200, service.reset().to_dict())
                         return

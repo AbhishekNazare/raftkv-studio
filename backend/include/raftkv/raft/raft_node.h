@@ -50,6 +50,7 @@ class RaftNode {
   [[nodiscard]] RaftLog& mutable_log();
   [[nodiscard]] const kv::StateMachine& state_machine() const;
   [[nodiscard]] LogIndex last_applied() const;
+  [[nodiscard]] const std::optional<Snapshot>& latest_snapshot() const;
 
   void become_follower(Term term, std::optional<NodeId> leader_id);
   void start_election();
@@ -61,6 +62,8 @@ class RaftNode {
       const AppendEntriesRequest& request);
   LogEntry append_client_command(std::string encoded_command);
   Status advance_commit_index(LogIndex new_commit_index);
+  Result<Snapshot> create_snapshot();
+  Status install_snapshot(const Snapshot& snapshot);
 
  private:
   [[nodiscard]] bool candidate_log_is_at_least_as_fresh(
@@ -76,6 +79,7 @@ class RaftNode {
   RaftLog log_;
   kv::StateMachine state_machine_;
   LogIndex last_applied_{0};
+  std::optional<Snapshot> latest_snapshot_;
 };
 
 }  // namespace raftkv::raft

@@ -11,6 +11,8 @@ class ClusterService:
         self._leader_id: Optional[str] = None
         self._next_log_index = 1
         self._next_event_sequence = 1
+        self._snapshot_index = 0
+        self._compacted_log_start_index = 1
         self.reset()
 
     def reset(self) -> ClusterSnapshot:
@@ -24,6 +26,8 @@ class ClusterService:
         self._leader_id = "node1"
         self._next_log_index = 1
         self._next_event_sequence = 1
+        self._snapshot_index = 0
+        self._compacted_log_start_index = 1
         self._emit("BECAME_LEADER", "node1", "node1 became leader", 1)
         return self.snapshot()
 
@@ -33,6 +37,8 @@ class ClusterService:
             majority=self.majority(),
             nodes=list(self._nodes.values()),
             kv=dict(self._kv),
+            snapshot_index=self._snapshot_index,
+            compacted_log_start_index=self._compacted_log_start_index,
         )
 
     def events(self) -> List[ClusterEvent]:
@@ -93,7 +99,37 @@ class ClusterService:
             return self._demo_leader_failover()
         if normalized == "network-partition":
             return self._demo_network_partition()
+        if normalized == "snapshot-install":
+            return self._demo_snapshot_install()
         raise ValueError(f"unsupported demo scenario: {scenario}")
+
+    def create_snapshot(self) -> ClusterSnapshot:
+        commit_index = max((node.commit_index for node in self._nodes.values()), default=0)
+        if commit_index == 0:
+            raise ValueError("cannot snapshot before a committed entry exists")
+
+        leader = self._current_leader()
+        self._snapshot_index = commit_index
+        self._compacted_log_start_index = commit_index + 1
+        for node in self._nodes.values():
+            if node.commit_index >= commit_index:
+                node.last_log_index = max(node.last_log_index, commit_index)
+
+        self._emit(
+            "SNAPSHOT_CREATED",
+            leader.node_id,
+            f"snapshot captured committed state through index {commit_index}",
+            leader.term,
+            commit_index,
+        )
+        self._emit(
+            "LOG_COMPACTED",
+            leader.node_id,
+            f"log entries before index {self._compacted_log_start_index} compacted",
+            leader.term,
+            commit_index,
+        )
+        return self.snapshot()
 
     def run_command(self, command: str, key: str, value: Optional[str] = None) -> CommandResult:
         normalized = command.upper()
@@ -238,6 +274,43 @@ class ClusterService:
             "oldLeader": old_leader,
             "newLeader": self._leader_id,
             "write": write.to_dict(),
+            "cluster": self.snapshot().to_dict(),
+            "events": [event.to_dict() for event in self.events()],
+        }
+
+    def _demo_snapshot_install(self) -> dict:
+        self.reset()
+        self.set_node_available("node3", False)
+        first = self.run_command("PUT", "catalog:1", "available")
+        second = self.run_command("PUT", "catalog:2", "reserved")
+        snapshot = self.create_snapshot()
+        self.set_node_available("node3", True)
+
+        lagging = self._nodes["node3"]
+        lagging.commit_index = self._snapshot_index
+        lagging.last_applied = self._snapshot_index
+        lagging.last_log_index = max(lagging.last_log_index, self._snapshot_index)
+        self._emit(
+            "SNAPSHOT_INSTALLED",
+            lagging.node_id,
+            f"{lagging.node_id} installed snapshot through index {self._snapshot_index}",
+            lagging.term,
+            self._snapshot_index,
+        )
+
+        passed = (
+            first.committed
+            and second.committed
+            and snapshot.snapshot_index == 2
+            and lagging.commit_index == self._snapshot_index
+            and self._kv.get("catalog:1") == "available"
+            and self._kv.get("catalog:2") == "reserved"
+        )
+        return {
+            "scenario": "snapshot-install",
+            "passed": passed,
+            "snapshotIndex": self._snapshot_index,
+            "compactedLogStartIndex": self._compacted_log_start_index,
             "cluster": self.snapshot().to_dict(),
             "events": [event.to_dict() for event in self.events()],
         }

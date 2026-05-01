@@ -74,6 +74,8 @@ class ClusterSnapshot:
     majority: int
     nodes: List[NodeStatus]
     kv: Dict[str, str] = field(default_factory=dict)
+    snapshot_index: int = 0
+    compacted_log_start_index: int = 1
 
     def to_dict(self) -> dict:
         return {
@@ -81,5 +83,6 @@ class ClusterSnapshot:
             "majority": self.majority,
             "nodes": [node.to_dict() for node in self.nodes],
             "kv": dict(self.kv),
+            "snapshotIndex": self.snapshot_index,
+            "compactedLogStartIndex": self.compacted_log_start_index,
         }
-
