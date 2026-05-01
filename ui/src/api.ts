@@ -4,11 +4,13 @@ const jsonHeaders = { "Content-Type": "application/json" };
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, init);
-  const body = (await response.json()) as T;
+  const body = (await response.json()) as unknown;
   if (!response.ok) {
-    return body;
+    const errorBody = body as { error?: string };
+    const message = errorBody.error ? errorBody.error : `request failed: ${response.status}`;
+    throw new Error(message);
   }
-  return body;
+  return body as T;
 }
 
 export async function getCluster(): Promise<ClusterSnapshot> {
@@ -40,6 +42,22 @@ export async function setNodeAvailability(
     method: "POST",
     headers: jsonHeaders,
     body: JSON.stringify({ nodeId, available })
+  });
+}
+
+export async function partitionNode(nodeId: string): Promise<ClusterSnapshot> {
+  return request<ClusterSnapshot>("/api/v1/faults/partition", {
+    method: "POST",
+    headers: jsonHeaders,
+    body: JSON.stringify({ nodeId })
+  });
+}
+
+export async function healNode(nodeId: string): Promise<ClusterSnapshot> {
+  return request<ClusterSnapshot>("/api/v1/faults/heal", {
+    method: "POST",
+    headers: jsonHeaders,
+    body: JSON.stringify({ nodeId })
   });
 }
 
