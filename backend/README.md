@@ -1,16 +1,17 @@
 # RaftKV Backend
 
-This directory contains the C++20 backend for RaftKV Studio.
+This directory contains the C++20 RaftKV core.
 
-Phase 1 only establishes the backend skeleton:
+## Current Scope
 
-- CMake project definition.
-- A small `raftkv_core` library.
-- A minimal `raftkv-node` executable.
-- A smoke test executable wired into CTest.
-
-The first backend milestone intentionally avoids Raft logic. The goal is to make
-the project buildable and testable before adding distributed systems behavior.
+- KV command model and deterministic state machine.
+- Raft log append, lookup, conflict replacement, commit advancement, and
+  compaction.
+- In-process cluster for deterministic leader, replication, catch-up, and
+  failover tests.
+- File-backed metadata, log, and KV storage primitives.
+- Protobuf/gRPC contracts and mapper tests.
+- Snapshot creation and snapshot install for far-behind followers.
 
 ## Build
 
@@ -24,12 +25,8 @@ the project buildable and testable before adding distributed systems behavior.
 ./scripts/test_backend.sh
 ```
 
-## Why Start This Small?
+## Design Note
 
-Raft has enough complexity on its own. A clean build/test skeleton gives every
-future phase a stable place to add code and tests:
-
-- Phase 2 adds the deterministic KV state machine.
-- Phase 3 adds the Raft log model.
-- Phase 4 adds an in-process Raft cluster.
-
+The backend deliberately starts with deterministic in-process tests before the
+full multi-process server loop. That keeps Raft correctness work easy to reason
+about and gives later networking work a stable behavioral contract.
