@@ -13,7 +13,10 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(RAFTKV_BUILD_TESTS "Build backend tests" ON)
 
-find_package(Protobuf CONFIG REQUIRED)
+find_package(Protobuf CONFIG QUIET)
+if(NOT Protobuf_FOUND)
+  find_package(Protobuf MODULE REQUIRED)
+endif()
 find_package(gRPC CONFIG REQUIRED)
 
 set(RAFTKV_PROTO_DIR ${CMAKE_CURRENT_SOURCE_DIR}/proto)

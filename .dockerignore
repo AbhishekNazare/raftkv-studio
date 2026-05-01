@@ -1,0 +1,11 @@
+.git
+.github
+
+build
+cmake-build-*
+
+ui/dist
+ui/node_modules
+
+.DS_Store
+*.log
