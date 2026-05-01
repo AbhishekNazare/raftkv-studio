@@ -102,6 +102,10 @@ Each script prints what it proves and exits non-zero on failure.
 - `scripts/`: local build, test, run, and demo entry points.
 - `docs/`: phase notes, demo guide, architecture tradeoffs, and interview notes.
 
+For a complete step-by-step demonstration script, including failure cases and
+all commands, use
+[docs/PROJECT_DEMONSTRATION_RUNBOOK.md](docs/PROJECT_DEMONSTRATION_RUNBOOK.md).
+
 ## Learning Path
 
 The phase plan is in [docs/PHASE_PLAN.md](docs/PHASE_PLAN.md). The most useful

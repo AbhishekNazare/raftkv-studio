@@ -2,6 +2,9 @@
 
 This guide is for quickly showing RaftKV Studio to a reviewer.
 
+For the full command-by-command walkthrough with failure cases, use
+[PROJECT_DEMONSTRATION_RUNBOOK.md](PROJECT_DEMONSTRATION_RUNBOOK.md).
+
 ## 1. Run The Checks
 
 ```bash
