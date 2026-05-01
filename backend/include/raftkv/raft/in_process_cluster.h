@@ -24,6 +24,7 @@ struct CatchUpResult {
   LogIndex from_index;
   LogIndex to_index;
   std::size_t entries_sent;
+  bool snapshot_installed;
   bool caught_up;
 };
 
@@ -42,6 +43,7 @@ class InProcessCluster {
   Status elect_leader(const NodeId& candidate_id);
   Result<ReplicationResult> replicate_command(std::string encoded_command);
   Result<CatchUpResult> sync_follower(const NodeId& follower_id);
+  Result<Snapshot> create_leader_snapshot();
 
  private:
   [[nodiscard]] bool is_available(const NodeId& id) const;

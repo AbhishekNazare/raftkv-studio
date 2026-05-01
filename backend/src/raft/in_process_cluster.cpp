@@ -182,9 +182,24 @@ Result<CatchUpResult> InProcessCluster::sync_follower(
 
   const LogIndex from_index = follower.log().last_index() + 1;
   std::size_t entries_sent = 0;
+  bool snapshot_installed = false;
+
+  const SnapshotMetadata leader_snapshot = leader->log().snapshot_metadata();
+  if (from_index <= leader_snapshot.last_included_index) {
+    if (!leader->latest_snapshot().has_value()) {
+      return Status::error(StatusCode::kUnavailable,
+                           "leader compacted log without available snapshot");
+    }
+
+    const Status install_status = follower.install_snapshot(*leader->latest_snapshot());
+    if (!install_status.ok_status()) {
+      return install_status;
+    }
+    snapshot_installed = true;
+  }
 
   for (const LogEntry& entry : leader->log().entries()) {
-    if (entry.index < from_index) {
+    if (entry.index <= follower.log().last_index()) {
       continue;
     }
 
@@ -229,9 +244,19 @@ Result<CatchUpResult> InProcessCluster::sync_follower(
       from_index,
       leader->log().last_index(),
       entries_sent,
+      snapshot_installed,
       follower.log().last_index() == leader->log().last_index() &&
           follower.log().commit_index() == leader->log().commit_index(),
   };
+}
+
+Result<Snapshot> InProcessCluster::create_leader_snapshot() {
+  Result<RaftNode*> leader_result = current_leader();
+  if (!leader_result.ok()) {
+    return leader_result.status();
+  }
+
+  return leader_result.value()->create_snapshot();
 }
 
 bool InProcessCluster::is_available(const NodeId& id) const {

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
+  createSnapshot,
   getCluster,
   getEvents,
   resetDemo,
@@ -15,7 +16,9 @@ const emptyCluster: ClusterSnapshot = {
   leaderId: null,
   majority: 2,
   nodes: [],
-  kv: {}
+  kv: {},
+  snapshotIndex: 0,
+  compactedLogStartIndex: 1
 };
 
 function App() {
@@ -69,6 +72,12 @@ function App() {
     await resetDemo();
     setLastResult(null);
     setLastDemo("Demo state reset.");
+    await refresh();
+  }
+
+  async function snapshotNow() {
+    const snapshot = await createSnapshot();
+    setLastDemo(`snapshot created through index ${snapshot.snapshotIndex}`);
     await refresh();
   }
 
@@ -148,6 +157,7 @@ function App() {
                 <Metric label="Commit Index" value={selected.commitIndex} />
                 <Metric label="Last Applied" value={selected.lastApplied} />
                 <Metric label="Last Log Index" value={selected.lastLogIndex} />
+                <Metric label="Snapshot Index" value={cluster.snapshotIndex} />
               </dl>
             ) : (
               <p className="empty">Start the control plane to load nodes.</p>
@@ -209,8 +219,27 @@ function App() {
               <button onClick={() => runScenario("no-quorum")} disabled={!apiOnline}>No Quorum</button>
               <button onClick={() => runScenario("leader-failover")} disabled={!apiOnline}>Leader Failover</button>
               <button onClick={() => runScenario("network-partition")} disabled={!apiOnline}>Network Partition</button>
+              <button onClick={() => runScenario("snapshot-install")} disabled={!apiOnline}>Snapshot Install</button>
             </div>
             <p className="demo-result">{lastDemo}</p>
+          </div>
+
+          <div className="panel snapshot-panel">
+            <div className="panel-header">
+              <h3>Snapshots</h3>
+              <span>log compaction</span>
+            </div>
+            <dl className="metrics">
+              <Metric label="Snapshot Index" value={cluster.snapshotIndex} />
+              <Metric label="Compacted Log Starts At" value={cluster.compactedLogStartIndex} />
+            </dl>
+            <button
+              className="primary snapshot-action"
+              onClick={snapshotNow}
+              disabled={!apiOnline || cluster.nodes.every((node) => node.commitIndex === 0)}
+            >
+              Create Snapshot
+            </button>
           </div>
 
           <div className="panel event-panel">

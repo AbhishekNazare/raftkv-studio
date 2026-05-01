@@ -15,6 +15,8 @@ export interface ClusterSnapshot {
   majority: number;
   nodes: NodeStatus[];
   kv: Record<string, string>;
+  snapshotIndex: number;
+  compactedLogStartIndex: number;
 }
 
 export interface ClusterEvent {
@@ -35,4 +37,3 @@ export interface CommandResult {
   message: string;
   value?: string;
 }
-

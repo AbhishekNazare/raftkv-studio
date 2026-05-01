@@ -36,6 +36,7 @@ POST /api/v1/commands
 POST /api/v1/faults/node
 POST /api/v1/faults/partition
 POST /api/v1/faults/heal
+POST /api/v1/snapshots/create
 POST /api/v1/demos/reset
 POST /api/v1/demos/run
 ```

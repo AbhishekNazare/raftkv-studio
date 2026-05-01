@@ -68,6 +68,7 @@ add_library(raftkv_core
   src/raft/in_process_cluster.cpp
   src/raft/raft_node.cpp
   src/raft/raft_log.cpp
+  src/raft/snapshot.cpp
   src/storage/file_kv_store.cpp
   src/storage/file_log_store.cpp
   src/storage/file_metadata_store.cpp
@@ -174,6 +175,17 @@ if(RAFTKV_BUILD_TESTS)
   )
 
   add_test(NAME raftkv_storage_test COMMAND raftkv_storage_test)
+
+  add_executable(raftkv_snapshot_test
+    tests/unit/snapshot_test.cpp
+  )
+
+  target_link_libraries(raftkv_snapshot_test
+    PRIVATE
+      raftkv_core
+  )
+
+  add_test(NAME raftkv_snapshot_test COMMAND raftkv_snapshot_test)
 
   add_executable(raftkv_rpc_mapper_test
     tests/unit/rpc_mapper_test.cpp

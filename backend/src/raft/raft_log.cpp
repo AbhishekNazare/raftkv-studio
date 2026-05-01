@@ -15,7 +15,7 @@ std::size_t RaftLog::size() const {
 
 LogIndex RaftLog::last_index() const {
   if (entries_.empty()) {
-    return 0;
+    return snapshot_metadata_.last_included_index;
   }
 
   return entries_.back().index;
@@ -23,7 +23,7 @@ LogIndex RaftLog::last_index() const {
 
 Term RaftLog::last_term() const {
   if (entries_.empty()) {
-    return 0;
+    return snapshot_metadata_.last_included_term;
   }
 
   return entries_.back().term;
@@ -31,6 +31,10 @@ Term RaftLog::last_term() const {
 
 LogIndex RaftLog::commit_index() const {
   return commit_index_;
+}
+
+SnapshotMetadata RaftLog::snapshot_metadata() const {
+  return snapshot_metadata_;
 }
 
 const std::vector<LogEntry>& RaftLog::entries() const {
@@ -49,6 +53,10 @@ Result<LogEntry> RaftLog::entry_at(LogIndex index) const {
 Term RaftLog::term_at(LogIndex index) const {
   if (index == 0) {
     return 0;
+  }
+
+  if (index == snapshot_metadata_.last_included_index) {
+    return snapshot_metadata_.last_included_term;
   }
 
   const std::optional<std::size_t> offset = offset_for(index);
@@ -87,6 +95,11 @@ Status RaftLog::append_from_leader(
     if (leader_entry.index <= prev_log_index) {
       return Status::error(StatusCode::kInvalidArgument,
                            "leader entry overlaps previous log index");
+    }
+
+    if (leader_entry.index <= snapshot_metadata_.last_included_index) {
+      return Status::error(StatusCode::kInvalidArgument,
+                           "leader entry is already covered by snapshot");
     }
 
     const LogIndex expected_index = last_index() + 1;
@@ -130,8 +143,55 @@ Status RaftLog::advance_commit_index(LogIndex new_commit_index) {
   return Status::ok();
 }
 
+Status RaftLog::compact_up_to(LogIndex index) {
+  if (index == 0) {
+    return Status::ok();
+  }
+
+  if (index > commit_index_) {
+    return Status::error(StatusCode::kInvalidArgument,
+                         "cannot compact uncommitted log entries");
+  }
+
+  const Term compacted_term = term_at(index);
+  if (compacted_term == 0) {
+    return Status::error(StatusCode::kNotFound,
+                         "cannot compact missing log entry");
+  }
+
+  snapshot_metadata_ = SnapshotMetadata{index, compacted_term};
+  entries_.erase(
+      std::remove_if(entries_.begin(), entries_.end(),
+                     [index](const LogEntry& entry) {
+                       return entry.index <= index;
+                     }),
+      entries_.end());
+  return Status::ok();
+}
+
+Status RaftLog::install_snapshot_metadata(SnapshotMetadata metadata) {
+  if (metadata.last_included_index < snapshot_metadata_.last_included_index) {
+    return Status::error(StatusCode::kInvalidArgument,
+                         "cannot install older snapshot");
+  }
+
+  snapshot_metadata_ = metadata;
+  if (commit_index_ < metadata.last_included_index) {
+    commit_index_ = metadata.last_included_index;
+  }
+
+  entries_.erase(
+      std::remove_if(entries_.begin(), entries_.end(),
+                     [metadata](const LogEntry& entry) {
+                       return entry.index <= metadata.last_included_index;
+                     }),
+      entries_.end());
+  return Status::ok();
+}
+
 std::optional<std::size_t> RaftLog::offset_for(LogIndex index) const {
-  if (index == 0 || entries_.empty()) {
+  if (index == 0 || entries_.empty() ||
+      index <= snapshot_metadata_.last_included_index) {
     return std::nullopt;
   }
 
@@ -162,4 +222,3 @@ void RaftLog::truncate_from(LogIndex index) {
 }
 
 }  // namespace raftkv::raft
-
