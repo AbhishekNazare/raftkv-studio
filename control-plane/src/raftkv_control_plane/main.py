@@ -11,9 +11,13 @@ def main() -> None:
 
     server, _ = create_server(args.host, args.port)
     print(f"raftkv-control-plane listening on http://{args.host}:{args.port}")
-    server.serve_forever()
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("\nraftkv-control-plane stopped")
+    finally:
+        server.server_close()
 
 
 if __name__ == "__main__":
     main()
-
